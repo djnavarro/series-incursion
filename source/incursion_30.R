@@ -1,6 +1,6 @@
 # forked from curled
 
-sys_id <- "29"
+sys_id <- "30"
 sys_name <- "incursion"
 
 output_dir <- here::here("output", sys_id)
@@ -108,14 +108,18 @@ in_box <- function(x, y, r) {
   (abs(x) < r) & (abs(y) < r)
 }
 
+in_circle <- function(x, y, r) {
+  x^2 + y^2 < r^2
+}
+
 within_bounds <- function(x, y, iter = 0) {
-  outer_box <- in_box(x, y, 1.0) & !in_box(x, y, 0.8)
-  inner_box <- in_box(x, y, 0.3)
-  outer_box | inner_box
+  outer <- in_box(x, y, 1.0) & !in_box(x, y, 0.8)
+  inner <- in_circle(x, y, 0.4)
+  outer | inner
 }
 
 within_inner <- function(x, y) {
-  in_box(x, y, 0.3)
+  in_circle(x, y, 0.4)
 }
 
 within_outer <- function(x, y) {
@@ -280,4 +284,4 @@ make_art <- function(seed) {
   )
 }
 
-if (TRUE) for (s in 2900:2999) make_art(s)
+if (TRUE) for (s in 3000:3099) make_art(s)
