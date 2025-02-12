@@ -1,6 +1,6 @@
 # forked from curled
 
-sys_id <- "22"
+sys_id <- "24"
 sys_name <- "incursion"
 
 output_dir <- here::here("output", sys_id)
@@ -90,7 +90,7 @@ create_base_image <- function(seed) {
   ht$shade <- shades[ht$val + 1]
   ht$val <- NULL
   ht$id <- 1:nrow(ht)
-  ht$free <- runif(nrow(ht)) < .4
+  ht$free <- runif(nrow(ht)) < .1
   return(ht)
 }
 
@@ -111,6 +111,12 @@ within_bounds <- function(x, y, iter = 0) {
   outer_ring <- (x^2 + y^2 < r0^2) & (x^2 + y^2 > r1^2)
   inner_disc <- (x^2 + y^2 < r2^2)
   outer_ring | inner_disc
+}
+
+within_inner <- function(x, y) {
+  r2 <- 0.3
+  inner_disc <- (x^2 + y^2 < r2^2)
+  inner_disc
 }
 
 unfold <- function(
@@ -143,9 +149,9 @@ unfold <- function(
       ...
     )
     data$iteration <- iter
-    data$x <- data$x + noise$x * scale
-    data$y <- data$y + noise$y * scale
-    data$z <- data$z + noise$z * scale
+    data$x <- data$x + noise$x * scale * (data$inner - .5) * 2
+    data$y <- data$y + noise$y * scale * (data$inner - .5) * 2
+    data$z <- data$z + noise$z * scale * (data$inner - .5) * 2
 
     if (iter < 500) {
       data <- data |> dplyr::filter(within_bounds(x, y, iter) | free)
@@ -192,6 +198,7 @@ make_art <- function(seed) {
       y = ambient::normalise(y, to = c(-1, 1))
     ) |>
     dplyr::filter(within_bounds(x, y)) |>
+    dplyr::mutate(inner = within_inner(x, y)) |>
     unfold(
       iterations = its,
       scale = .00002,
@@ -199,8 +206,11 @@ make_art <- function(seed) {
     ) |>
     dplyr::group_by(id) |>
     dplyr::mutate(
-      size = ifelse(iteration > 500, 1, iteration/500),
-      size = 4.5 * abs(1 - size) + .5
+      size = ifelse(
+        test = iteration > 500,
+        yes  = 1 * (1 - (iteration - 500)/(its - 500)),
+        no   = 4 * (1 - iteration/500) + 1
+      )
     ) |>
     dplyr::ungroup()
 

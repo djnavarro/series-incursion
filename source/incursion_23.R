@@ -1,6 +1,6 @@
 # forked from curled
 
-sys_id <- "22"
+sys_id <- "23"
 sys_name <- "incursion"
 
 output_dir <- here::here("output", sys_id)
@@ -199,8 +199,11 @@ make_art <- function(seed) {
     ) |>
     dplyr::group_by(id) |>
     dplyr::mutate(
-      size = ifelse(iteration > 500, 1, iteration/500),
-      size = 4.5 * abs(1 - size) + .5
+      size = ifelse(
+        test = iteration > 500,
+        yes  = 1 * (1 - (iteration - 500)/(its - 500)),
+        no   = 4 * (1 - iteration/500) + 1
+      )
     ) |>
     dplyr::ungroup()
 

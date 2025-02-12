@@ -1,6 +1,6 @@
 # forked from curled
 
-sys_id <- "22"
+sys_id <- "28"
 sys_name <- "incursion"
 
 output_dir <- here::here("output", sys_id)
@@ -78,8 +78,8 @@ create_base_image <- function(seed) {
     filename = tmp,
     plot = plt,
     device = "png",
-    width = 160,
-    height = 160,
+    width = 200,
+    height = 200,
     units = "px"
   )
   mat <- png::readPNG(source = tmp)
@@ -90,7 +90,7 @@ create_base_image <- function(seed) {
   ht$shade <- shades[ht$val + 1]
   ht$val <- NULL
   ht$id <- 1:nrow(ht)
-  ht$free <- runif(nrow(ht)) < .4
+  ht$free <- runif(nrow(ht)) < .1
   return(ht)
 }
 
@@ -104,13 +104,22 @@ show_base_image <- function(ht) {
 
 # add curl ----------------------------------------------------------------
 
+in_box <- function(x, y, r) {
+  (abs(x) < r) & (abs(y) < r)
+}
+
 within_bounds <- function(x, y, iter = 0) {
-  r0 <- 1.0
-  r1 <- 0.6
-  r2 <- 0.3
-  outer_ring <- (x^2 + y^2 < r0^2) & (x^2 + y^2 > r1^2)
-  inner_disc <- (x^2 + y^2 < r2^2)
-  outer_ring | inner_disc
+  outer_box <- in_box(x, y, 1.0) & !in_box(x, y, 0.6)
+  inner_box <- in_box(x, y, 0.3)
+  outer_box | inner_box
+}
+
+within_inner <- function(x, y) {
+  in_box(x, y, 0.3)
+}
+
+within_outer <- function(x, y) {
+  in_box(x, y, 1.0)
 }
 
 unfold <- function(
@@ -143,9 +152,9 @@ unfold <- function(
       ...
     )
     data$iteration <- iter
-    data$x <- data$x + noise$x * scale
-    data$y <- data$y + noise$y * scale
-    data$z <- data$z + noise$z * scale
+    data$x <- data$x + noise$x * scale * (data$inner - .5) * 2
+    data$y <- data$y + noise$y * scale * (data$inner - .5) * 2
+    data$z <- data$z + noise$z * scale * (data$inner - .5) * 2
 
     if (iter < 500) {
       data <- data |> dplyr::filter(within_bounds(x, y, iter) | free)
@@ -157,6 +166,7 @@ unfold <- function(
       data <- data |>
         dplyr::filter(!within_bounds(x, y, iter))
     }
+    data <- data |> dplyr::filter(within_outer(x, y))
 
     return(data)
   }
@@ -192,6 +202,7 @@ make_art <- function(seed) {
       y = ambient::normalise(y, to = c(-1, 1))
     ) |>
     dplyr::filter(within_bounds(x, y)) |>
+    dplyr::mutate(inner = within_inner(x, y)) |>
     unfold(
       iterations = its,
       scale = .00002,
@@ -199,8 +210,12 @@ make_art <- function(seed) {
     ) |>
     dplyr::group_by(id) |>
     dplyr::mutate(
-      size = ifelse(iteration > 500, 1, iteration/500),
-      size = 4.5 * abs(1 - size) + .5
+      maxit = max(iteration),
+      size = dplyr::case_when(
+        iteration < maxit/4 ~ iteration/(maxit/4),
+        iteration < maxit/2 ~ .5 * (1 - (iteration-(maxit/4))/(maxit/4)) + .5,
+        TRUE ~ .5 * (1 - (iteration - (maxit/2))/(its - (maxit/2)))
+      )
     ) |>
     dplyr::ungroup()
 
@@ -265,4 +280,4 @@ make_art <- function(seed) {
   )
 }
 
-if (TRUE) for (s in 3200:3299) make_art(s)
+if (TRUE) for (s in 2800:2899) make_art(s)
